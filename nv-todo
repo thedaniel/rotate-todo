@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+from datetime import datetime
+from ConfigParser import RawConfigParser
+import os
+import re
+
+DEFAULTS = dict(
+    notes_path=os.path.expanduser('~/Dropbox/notes'),
+    rolling_todo_filename='rolling todo.txt',
+    )
+
+def create(notes_path, day):
+    notepath = os.path.join(
+        notes_path,
+        "%s todo.txt" % day.strftime("%Y-%m-%d"),
+        )
+
+    if os.path.exists(notepath):
+        return False
+    else:
+        fp = open(notepath, 'w')
+        fp.close()
+    return notepath
+
+def rollup(notes_path, filename, before_day):
+    notes = os.listdir(notes_path)
+    regex = '\d{4}-\d{2}-\d{2} todo.txt'
+    todos = [name for name in notes if re.match(regex, name) is not None]
+    rollup = open(os.path.join(notes_path, filename), 'a')
+    for todo in todos:
+        if todo[:10] < before_day.strftime("%Y-%m-%d"):
+            todo_file = os.path.join(notes_path, todo)
+            fp = open(todo_file)
+            rollup.write(fp.read())
+            fp.close()
+            os.remove(todo_file)
+    rollup.close()
+    
+    
+
+if __name__ == '__main__':
+    parser = RawConfigParser()
+    # TODO: optparse options like:
+    # nv-todo [-r] [tomorrow|YYYY-MM-DD]
+    # -r only runs rollup, optional argument says what day to generate for
+    read_files = parser.read(os.path.expanduser('~/.nv-todo'))
+    config = DEFAULTS
+    for key in parser.options('main'):
+        config[key] = parser.get('main', key)
+
+    rollup(
+        config['notes_path'],
+        config['rolling_todo_filename'],
+        before_day=datetime.now(),
+        )
+    create(
+        config['notes_path'],
+        datetime.now(),
+        )
